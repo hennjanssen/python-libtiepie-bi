@@ -2,15 +2,15 @@
 
 from setuptools import find_packages, setup
 
-setup(name='python-libtiepie',
+setup(name='python-libtiepie-bi',
       version='1.1.10',
-      description='Python bindings for LibTiePie',
+      description='Python bindings for LibTiePie (Binaries included)',
       license='MIT',
       author='TiePie engineering',
       author_email='support@tiepie.nl',
-      url='https://github.com/TiePie/python-libtiepie',
+      url='https://github.com/hennjanssen/python-libtiepie-bi',
       packages=find_packages(include=['libtiepie', 'libtiepie.*']),
-      package_data={'libtiepie': ['_platform/*/*/*.dll']},
+      package_data={'libtiepie': ['_platform/*/*/*.dll', '_platform/*/*/*.so*']},
       python_requires='>=3',
       classifiers=[
           'Development Status :: 5 - Production/Stable',
