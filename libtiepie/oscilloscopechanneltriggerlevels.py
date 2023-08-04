@@ -1,3 +1,11 @@
+""" python-libtiepie - Python interface for libtiepie-hw library
+
+Copyright (c) 2023 TiePie engineering
+
+Website: http://www.tiepie.com/LibTiePie
+
+"""
+
 from .api import api
 from .const import *
 from .library import library
@@ -13,33 +21,23 @@ class OscilloscopeChannelTriggerLevels(object):
 
     def __getitem__(self, index):
         try:
-            value = api.ScpChTrGetLevel(self._handle, self._ch, index)
+            value = api.tiepie_hw_oscilloscope_channel_trigger_get_level(self._handle, self._ch, index)
             library.check_last_status_raise_on_error()
             return value
         except InvalidIndexError:
-            raise IndexError()
-        except NotSupportedError:
-            if api.ScpChHasTrigger(self._handle, self._ch) == BOOL8_TRUE:
-                raise IndexError()
-            else:
-                raise
+            raise IndexError('Index out of range')
 
     def __setitem__(self, index, value):
         try:
-            api.ScpChTrSetLevel(self._handle, self._ch, index, value)
+            api.tiepie_hw_oscilloscope_channel_trigger_set_level(self._handle, self._ch, index, value)
             library.check_last_status_raise_on_error()
         except InvalidIndexError:
-            raise IndexError()
-        except NotSupportedError:
-            if api.ScpChHasTrigger(self._handle, self._ch) == BOOL8_TRUE:
-                raise IndexError()
-            else:
-                raise
+            raise IndexError('Index out of range')
 
     def __len__(self):
         return self.count
 
     def _get_count(self):
-        return api.ScpChTrGetLevelCount(self._handle, self._ch)
+        return api.tiepie_hw_oscilloscope_channel_trigger_get_level_count(self._handle, self._ch)
 
     count = property(_get_count)

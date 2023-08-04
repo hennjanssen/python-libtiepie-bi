@@ -1,3 +1,11 @@
+""" python-libtiepie - Python interface for libtiepie-hw library
+
+Copyright (c) 2023 TiePie engineering
+
+Website: http://www.tiepie.com/LibTiePie
+
+"""
+
 from .api import api
 from .const import *
 from .library import library
@@ -27,74 +35,129 @@ class OscilloscopeChannelTrigger(object):
 
     def _get_is_available(self):
         """ Check whether the channel trigger is available, with the current oscilloscope settings. """
-        value = api.ScpChTrIsAvailable(self._handle, self._ch)
+        value = api.tiepie_hw_oscilloscope_channel_trigger_is_available(self._handle, self._ch)
         library.check_last_status_raise_on_error()
-        return value != BOOL8_FALSE
+        return value != BOOL_FALSE
+
+    def is_available_ex(self, measure_mode, sample_rate, resolution, channel_enabled, channel_trigger_enabled, channel_count):
+        """ Check whether the channel trigger is available, for a specific configuration.
+
+        :param measure_mode: Measure mode, a TIEPIE_HW_MM_* value.
+        :param sample_rate: sample rate in Hz.
+        :param resolution: Resolution in bits.
+        :param channel_enabled: Pointer to buffer with channel enables.
+        :param channel_trigger_enabled: Pointer to buffer with channel trigger enables.
+        :param channel_count: Number of items in ``channel_enabled`` and ``channel_trigger_enabled.``
+        :returns: ``True`` if available, ``False`` otherwise.
+        .. version added:: 1.0
+        """
+        result = api.tiepie_hw_oscilloscope_channel_trigger_is_available_ex(self._handle, self._ch, measure_mode, sample_rate, resolution, channel_enabled, channel_trigger_enabled, channel_count)
+        library.check_last_status_raise_on_error()
+        return result != BOOL_FALSE
 
     def _get_is_triggered(self):
         """ Check whether the channel trigger caused a trigger. """
-        value = api.ScpChTrIsTriggered(self._handle, self._ch)
+        value = api.tiepie_hw_oscilloscope_channel_trigger_is_triggered(self._handle, self._ch)
         library.check_last_status_raise_on_error()
-        return value != BOOL8_FALSE
+        return value != BOOL_FALSE
 
     def _get_enabled(self):
-        """ Check whether channel trigger is enabled. """
-        value = api.ScpChTrGetEnabled(self._handle, self._ch)
+        """  """
+        value = api.tiepie_hw_oscilloscope_channel_trigger_get_enabled(self._handle, self._ch)
         library.check_last_status_raise_on_error()
-        return value != BOOL8_FALSE
+        return value != BOOL_FALSE
 
     def _set_enabled(self, value):
-        value = BOOL8_TRUE if value else BOOL8_FALSE
-        api.ScpChTrSetEnabled(self._handle, self._ch, value)
+        value = BOOL_TRUE if value else BOOL_FALSE
+        api.tiepie_hw_oscilloscope_channel_trigger_set_enabled(self._handle, self._ch, value)
         library.check_last_status_raise_on_error()
 
     def _get_kinds(self):
-        """ Supported channel trigger kinds with the currently selected measure mode. """
-        value = api.ScpChTrGetKinds(self._handle, self._ch)
+        """  """
+        value = api.tiepie_hw_oscilloscope_channel_trigger_get_kinds(self._handle, self._ch)
         library.check_last_status_raise_on_error()
         return value
 
+    def get_kinds_ex(self, measure_mode):
+        """ Get the supported channel trigger kinds, for a specific measure mode.
+
+        :param measure_mode: Measure mode, a TIEPIE_HW_MM_* value.
+        :returns: Supported trigger kinds, a set of OR-ed TIEPIE_HW_TK_* values.
+        .. version added:: 1.0
+        """
+        result = api.tiepie_hw_oscilloscope_channel_trigger_get_kinds_ex(self._handle, self._ch, measure_mode)
+        library.check_last_status_raise_on_error()
+        return result
+
     def _get_kind(self):
         """ Currently selected channel trigger kind. """
-        value = api.ScpChTrGetKind(self._handle, self._ch)
+        value = api.tiepie_hw_oscilloscope_channel_trigger_get_kind(self._handle, self._ch)
         library.check_last_status_raise_on_error()
         return value
 
     def _set_kind(self, value):
-        api.ScpChTrSetKind(self._handle, self._ch, value)
+        api.tiepie_hw_oscilloscope_channel_trigger_set_kind(self._handle, self._ch, value)
         library.check_last_status_raise_on_error()
 
     def _get_level_modes(self):
-        """ Supported trigger level modes. """
-        value = api.ScpChTrGetLevelModes(self._handle, self._ch)
+        """  """
+        value = api.tiepie_hw_oscilloscope_channel_trigger_get_level_modes(self._handle, self._ch)
         library.check_last_status_raise_on_error()
         return value
 
     def _get_level_mode(self):
         """ Current trigger level mode. """
-        value = api.ScpChTrGetLevelMode(self._handle, self._ch)
+        value = api.tiepie_hw_oscilloscope_channel_trigger_get_level_mode(self._handle, self._ch)
         library.check_last_status_raise_on_error()
         return value
 
     def _set_level_mode(self, value):
-        api.ScpChTrSetLevelMode(self._handle, self._ch, value)
+        api.tiepie_hw_oscilloscope_channel_trigger_set_level_mode(self._handle, self._ch, value)
         library.check_last_status_raise_on_error()
 
     def _get_conditions(self):
-        """ Supported trigger conditions with the currently selected trigger kind. """
-        value = api.ScpChTrGetConditions(self._handle, self._ch)
+        """  """
+        value = api.tiepie_hw_oscilloscope_channel_trigger_get_conditions(self._handle, self._ch)
         library.check_last_status_raise_on_error()
         return value
 
+    def get_conditions_ex(self, measure_mode, trigger_kind):
+        """ Get the supported trigger conditions, for a specific measure mode and trigger kind.
+
+        :param measure_mode: Measure mode, a TIEPIE_HW_MM_* value.
+        :param trigger_kind: Trigger kind, a TIEPIE_HW_TK_* value.
+        :returns: Supported trigger conditions for this channel, measure mode and trigger kind, a set of OR-ed TIEPIE_HW_TC_* values.
+        .. version added:: 1.0
+        """
+        result = api.tiepie_hw_oscilloscope_channel_trigger_get_conditions_ex(self._handle, self._ch, measure_mode, trigger_kind)
+        library.check_last_status_raise_on_error()
+        return result
+
     def _get_condition(self):
         """ Current selected trigger condition. """
-        value = api.ScpChTrGetCondition(self._handle, self._ch)
+        value = api.tiepie_hw_oscilloscope_channel_trigger_get_condition(self._handle, self._ch)
         library.check_last_status_raise_on_error()
         return value
 
     def _set_condition(self, value):
-        api.ScpChTrSetCondition(self._handle, self._ch, value)
+        api.tiepie_hw_oscilloscope_channel_trigger_set_condition(self._handle, self._ch, value)
         library.check_last_status_raise_on_error()
+
+    def verify_time_ex(self, index, value, measure_mode, sample_rate, trigger_kind, trigger_condition):
+        """ Verify if the required trigger time value, measure mode, sample rate, trigger type and trigger condition can be set.
+
+        :param index: The trigger time index, ``0`` to <tt>Scp_chTr_get_time_count() - 1</tt>.
+        :param value: The required trigger time value, in seconds.
+        :param measure_mode: The required measure mode.
+        :param sample_rate: Sample rate in Hz.
+        :param trigger_kind: The required trigger kind.
+        :param trigger_condition: The required trigger condition.
+        :returns: The actually trigger time value that would have been set, in seconds.
+        .. version added:: 1.0
+        """
+        result = api.tiepie_hw_oscilloscope_channel_trigger_verify_time_ex(self._handle, self._ch, index, value, measure_mode, sample_rate, trigger_kind, trigger_condition)
+        library.check_last_status_raise_on_error()
+        return result
 
     is_available = property(_get_is_available)
     is_triggered = property(_get_is_triggered)

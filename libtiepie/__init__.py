@@ -1,3 +1,11 @@
+""" python-libtiepie - Python interface for libtiepie-hw library
+
+Copyright (c) 2023 TiePie engineering
+
+Website: http://www.tiepie.com/LibTiePie
+
+"""
+
 from .api import api
 from .const import *
 from .utils import *

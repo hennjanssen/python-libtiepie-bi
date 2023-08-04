@@ -1,3 +1,12 @@
+""" python-libtiepie - Python interface for libtiepie-hw library
+
+Copyright (c) 2023 TiePie engineering
+
+Website: http://www.tiepie.com/LibTiePie
+
+"""
+
+
 class LibTiePieException(Exception):
     """The base class for all LibTiePie exceptions."""
     def __init__(self, status, message):
@@ -61,11 +70,11 @@ class InvalidDeviceIndexError(LibTiePieException):
         super(InvalidDeviceIndexError, self).__init__(InvalidDeviceIndexError, 'Invalid device index')
 
 
-class InvalidProductIdError(LibTiePieException):
+class InvalidProductIDError(LibTiePieException):
     """"""
 
     def __init__(self):
-        super(InvalidProductIdError, self).__init__(InvalidProductIdError, 'Invalid product id')
+        super(InvalidProductIDError, self).__init__(InvalidProductIDError, 'Invalid product id')
 
 
 class InvalidDeviceSerialNumberError(LibTiePieException):
@@ -80,9 +89,6 @@ class ObjectGoneError(LibTiePieException):
 
     def __init__(self):
         super(ObjectGoneError, self).__init__(ObjectGoneError, 'Object gone')
-
-
-DeviceGoneError = ObjectGoneError
 
 
 class InternalAddressError(LibTiePieException):
@@ -132,13 +138,6 @@ class InvalidOutputError(LibTiePieException):
 
     def __init__(self):
         super(InvalidOutputError, self).__init__(InvalidOutputError, 'Invalid output')
-
-
-class InvalidDriverError(LibTiePieException):
-    """"""
-
-    def __init__(self):
-        super(InvalidDriverError, self).__init__(InvalidDriverError, 'Invalid driver')
 
 
 class NotAvailableError(LibTiePieException):
@@ -211,43 +210,57 @@ class MeasurementRunningError(LibTiePieException):
         super(MeasurementRunningError, self).__init__(MeasurementRunningError, 'Measurement running')
 
 
-class InitializationError10001(LibTiePieException):
+class WirelesstriggermodulenotconnectedError(LibTiePieException):
     """"""
 
     def __init__(self):
-        super(InitializationError10001, self).__init__(InitializationError10001, 'Initialization error 10001')
+        super(WirelesstriggermodulenotconnectedError, self).__init__(WirelesstriggermodulenotconnectedError, 'Wirelesstriggermodulenotconnected')
 
 
-class InitializationError10002(LibTiePieException):
+class InitializationError10001Error(LibTiePieException):
     """"""
 
     def __init__(self):
-        super(InitializationError10002, self).__init__(InitializationError10002, 'Initialization error 10002')
+        super(InitializationError10001Error, self).__init__(InitializationError10001Error, 'Initialization error 10001')
 
 
-class InitializationError10003(LibTiePieException):
+class InitializationError10002Error(LibTiePieException):
     """"""
 
     def __init__(self):
-        super(InitializationError10003, self).__init__(InitializationError10003, 'Initialization error 10003')
+        super(InitializationError10002Error, self).__init__(InitializationError10002Error, 'Initialization error 10002')
 
 
-class InitializationError10004(LibTiePieException):
+class InitializationError10003Error(LibTiePieException):
     """"""
 
     def __init__(self):
-        super(InitializationError10004, self).__init__(InitializationError10004, 'Initialization error 10004')
+        super(InitializationError10003Error, self).__init__(InitializationError10003Error, 'Initialization error 10003')
 
 
-class InitializationError10005(LibTiePieException):
+class InitializationError10004Error(LibTiePieException):
     """"""
 
     def __init__(self):
-        super(InitializationError10005, self).__init__(InitializationError10005, 'Initialization error 10005')
+        super(InitializationError10004Error, self).__init__(InitializationError10004Error, 'Initialization error 10004')
 
 
-class InitializationError10006(LibTiePieException):
+class InitializationError10005Error(LibTiePieException):
     """"""
 
     def __init__(self):
-        super(InitializationError10006, self).__init__(InitializationError10006, 'Initialization error 10006')
+        super(InitializationError10005Error, self).__init__(InitializationError10005Error, 'Initialization error 10005')
+
+
+class InitializationError10006Error(LibTiePieException):
+    """"""
+
+    def __init__(self):
+        super(InitializationError10006Error, self).__init__(InitializationError10006Error, 'Initialization error 10006')
+
+
+class InitializationError10007Error(LibTiePieException):
+    """"""
+
+    def __init__(self):
+        super(InitializationError10007Error, self).__init__(InitializationError10007Error, 'Initialization error 10007')

@@ -10,4 +10,4 @@ arch_dir = os.path.join(this_dir, arch)
 try:
     from ...__config__ import LIBTIEPIE as DLL_PATH
 except ImportError:
-    DLL_PATH = os.path.join(arch_dir, 'libtiepie.dll')
+    DLL_PATH = os.path.join(arch_dir, 'libtiepie-hw.dll')

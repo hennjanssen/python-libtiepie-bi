@@ -1,11 +1,37 @@
+""" python-libtiepie - Python interface for libtiepie-hw library
+
+Copyright (c) 2023 TiePie engineering
+
+Website: http://www.tiepie.com/LibTiePie
+
+"""
+
 from collections import namedtuple
 from ctypes import *
 
 
-Callback = CFUNCTYPE(None, c_void_p)
-CallbackDeviceList = CFUNCTYPE(None, c_void_p, c_uint32, c_uint32)
-CallbackHandle = CFUNCTYPE(None, c_void_p, c_uint32)
-CallbackEvent = CFUNCTYPE(None, c_void_p, c_uint32, c_uint32)
+tiepie_hw_devicelist_callback = CFUNCTYPE(None, c_void_p, c_uint32, c_uint32)
+tiepie_hw_handle_callback = CFUNCTYPE(None, c_void_p, c_uint32)
+tiepie_hw_event_callback = CFUNCTYPE(None, c_void_p, c_int32, c_uint32)
+
+
+class tiepie_hw_date(Structure):
+    _fields_ = [
+        ("year", c_uint16),
+        ("month", c_uint8),
+        ("day", c_uint8)]
+
+
+class tiepie_hw_version(Structure):
+    _fields_ = [
+        ("major", c_uint16),
+        ("minor", c_uint16),
+        ("patch", c_uint16),
+        ("build", c_uint16),
+        ("extra", c_char_p)]
+
+    def __str__(self):
+        return f'{self.major}.{self.minor}.{self.patch}.{self.build}{"" if self.extra is None else self.extra.decode("utf-8")}'
 
 
 class Tristate(object):  # See: http://stackoverflow.com/a/9504358
@@ -28,9 +54,4 @@ class Tristate(object):  # See: http://stackoverflow.com/a/9504358
         return str(self.value)
 
     def __repr__(self):
-        return "Tristate(%s)" % self.value
-
-
-class Version(namedtuple('Version', ['major', 'minor', 'release', 'build'])):
-    def __str__(self):
-        return '{0:d}.{1:d}.{2:d}.{3:d}'.format(self.major, self.minor, self.release, self.build)
+        return f'Tristate({self.value})'

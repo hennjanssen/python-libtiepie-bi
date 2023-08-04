@@ -1,3 +1,11 @@
+""" python-libtiepie - Python interface for libtiepie-hw library
+
+Copyright (c) 2023 TiePie engineering
+
+Website: http://www.tiepie.com/LibTiePie
+
+"""
+
 from ctypes import *
 from .api import api
 from .const import *
@@ -12,44 +20,44 @@ class TriggerOutput(object):
         self._index = index
 
     def _get_enabled(self):
-        """ Check whether a trigger output is enabled. """
-        value = api.DevTrOutGetEnabled(self._handle, self._index)
+        """  """
+        value = api.tiepie_hw_device_trigger_output_get_enabled(self._handle, self._index)
         library.check_last_status_raise_on_error()
-        return value != BOOL8_FALSE
+        return value != BOOL_FALSE
 
     def _set_enabled(self, value):
-        value = BOOL8_TRUE if value else BOOL8_FALSE
-        api.DevTrOutSetEnabled(self._handle, self._index, value)
+        value = BOOL_TRUE if value else BOOL_FALSE
+        api.tiepie_hw_device_trigger_output_set_enabled(self._handle, self._index, value)
         library.check_last_status_raise_on_error()
 
     def _get_events(self):
-        """ Supported trigger output events. """
-        value = api.DevTrOutGetEvents(self._handle, self._index)
+        """  """
+        value = api.tiepie_hw_device_trigger_output_get_events(self._handle, self._index)
         library.check_last_status_raise_on_error()
         return value
 
     def _get_event(self):
         """ Currently selected trigger output event. """
-        value = api.DevTrOutGetEvent(self._handle, self._index)
+        value = api.tiepie_hw_device_trigger_output_get_event(self._handle, self._index)
         library.check_last_status_raise_on_error()
         return value
 
     def _set_event(self, value):
-        api.DevTrOutSetEvent(self._handle, self._index, value)
+        api.tiepie_hw_device_trigger_output_set_event(self._handle, self._index, value)
         library.check_last_status_raise_on_error()
 
     def _get_id(self):
-        """ Id. """
-        value = api.DevTrOutGetId(self._handle, self._index)
+        """  """
+        value = api.tiepie_hw_device_trigger_output_get_id(self._handle, self._index)
         library.check_last_status_raise_on_error()
         return value
 
     def _get_name(self):
         """ Name. """
-        length = api.DevTrOutGetName(self._handle, self._index, None, 0)
+        length = api.tiepie_hw_device_trigger_output_get_name(self._handle, self._index, None, 0)
         library.check_last_status_raise_on_error()
         buf = create_string_buffer(length + 1)
-        api.DevTrOutGetName(self._handle, self._index, buf, length)
+        api.tiepie_hw_device_trigger_output_get_name(self._handle, self._index, buf, length)
         library.check_last_status_raise_on_error()
         return buf.value.decode('utf-8')
 
@@ -57,11 +65,11 @@ class TriggerOutput(object):
         """ Trigger the specified device trigger output.
 
         :returns: ``True`` if successful, ``False`` otherwise.
-        .. versionadded:: 0.6
+        .. version added:: 1.0
         """
-        result = api.DevTrOutTrigger(self._handle, self._index)
+        result = api.tiepie_hw_device_trigger_output_trigger(self._handle, self._index)
         library.check_last_status_raise_on_error()
-        return result != BOOL8_FALSE
+        return result != BOOL_FALSE
 
     enabled = property(_get_enabled, _set_enabled)
     events = property(_get_events)

@@ -1,4 +1,13 @@
+""" python-libtiepie - Python interface for libtiepie-hw library
+
+Copyright (c) 2023 TiePie engineering
+
+Website: http://www.tiepie.com/LibTiePie
+
+"""
+
 from array import array
+import numpy as np
 from ctypes import c_uint8, c_float
 from .api import api
 from .const import *
@@ -7,6 +16,7 @@ from .library import library
 from .device import Device
 from .oscilloscopechannels import OscilloscopeChannels
 from .exceptions import *
+from .oscilloscopetrigger import OscilloscopeTrigger
 
 
 class Oscilloscope(Device):
@@ -15,9 +25,19 @@ class Oscilloscope(Device):
     def __init__(self, handle):
         super(Oscilloscope, self).__init__(handle)
         self._channels = OscilloscopeChannels(handle)
+        self._trigger = OscilloscopeTrigger(handle)
 
     def _get_channels(self):
         return self._channels
+
+    def _get_trigger(self):
+        return self._trigger
+
+    def _get_is_demo(self):
+        """  """
+        value = api.tiepie_hw_oscilloscope_is_demo(self._handle)
+        library.check_last_status_raise_on_error()
+        return value != BOOL_FALSE
 
     def get_data(self, count=None, raw=False):
         """ Get the measurement data for enabled channels.
@@ -25,7 +45,8 @@ class Oscilloscope(Device):
         :param count: Number of samples to read, defaults to all.
         :param raw: Get raw data.
 
-        :returns: `list` of `array.array`'s with sample data.
+        :returns: `list` of `array.array`'s with float sample data.
+        .. version added:: 1.0
         """
         if not self.is_data_ready:
             raise UnsuccessfulError()
@@ -44,56 +65,96 @@ class Oscilloscope(Device):
             length = count
 
         # Create pointer array:
-        pointers = api.HlpPointerArrayNew(channel_count)
+        pointers = [c_void_p(0)] * channel_count
 
-        try:
-            # Allocate memory and fill pointer array:
-            result = [None] * channel_count
-            for i in range(channel_count):
-                if self._active_channels[i]:
-                    if raw:
-                        raw_type = self.channels[i].data_raw_type
-                        if raw_type == DATARAWTYPE_INT8:
-                            result[i] = array('b', [0]) * length
-                        elif raw_type == DATARAWTYPE_INT16:
-                            result[i] = array('h', [0]) * length
-                        elif raw_type == DATARAWTYPE_INT32:
-                            result[i] = array('l', [0]) * length
-                        elif raw_type == DATARAWTYPE_INT64:
-                            result[i] = array('q', [0]) * length
-                        elif raw_type == DATARAWTYPE_UINT8:
-                            result[i] = array('B', [0]) * length
-                        elif raw_type == DATARAWTYPE_UINT16:
-                            result[i] = array('H', [0]) * length
-                        elif raw_type == DATARAWTYPE_UINT32:
-                            result[i] = array('L', [0]) * length
-                        elif raw_type == DATARAWTYPE_UINT64:
-                            result[i] = array('Q', [0]) * length
-                        elif raw_type == DATARAWTYPE_FLOAT32:
-                            result[i] = array('f', [0]) * length
-                        elif raw_type == DATARAWTYPE_FLOAT64:
-                            result[i] = array('d', [0]) * length
-                        else:
-                            raise UnsuccessfulError()
-                    else:
+        # Allocate memory and fill pointer array:
+        result = [[]] * channel_count
+        for i in range(channel_count):
+            if self._active_channels[i]:
+                if raw:
+                    raw_type = self.channels[i].data_raw_type
+                    if raw_type == DATARAWTYPE_INT8:
+                        result[i] = array('b', [0]) * length
+                    elif raw_type == DATARAWTYPE_INT16:
+                        result[i] = array('h', [0]) * length
+                    elif raw_type == DATARAWTYPE_INT32:
+                        result[i] = array('l', [0]) * length
+                    elif raw_type == DATARAWTYPE_INT64:
+                        result[i] = array('q', [0]) * length
+                    elif raw_type == DATARAWTYPE_UINT8:
+                        result[i] = array('B', [0]) * length
+                    elif raw_type == DATARAWTYPE_UINT16:
+                        result[i] = array('H', [0]) * length
+                    elif raw_type == DATARAWTYPE_UINT32:
+                        result[i] = array('L', [0]) * length
+                    elif raw_type == DATARAWTYPE_UINT64:
+                        result[i] = array('Q', [0]) * length
+                    elif raw_type == DATARAWTYPE_FLOAT32:
                         result[i] = array('f', [0]) * length
-                    api.HlpPointerArraySet(pointers, i, cast(result[i].buffer_info()[0], c_void_p))
+                    elif raw_type == DATARAWTYPE_FLOAT64:
+                        result[i] = array('d', [0]) * length
+                    else:
+                        raise UnsuccessfulError()
+                else:
+                    result[i] = array('f', [0]) * length
+                pointers[i] = cast(result[i].buffer_info()[0], c_void_p)
 
-            # Get the data:
-            if raw:
-                api.ScpGetDataRaw(self._handle, pointers, channel_count, start, length)
-            else:
-                api.ScpGetData(self._handle, pointers, channel_count, start, length)
-            library.check_last_status_raise_on_error()
-        finally:
-            # Delete pointer array:
-            api.HlpPointerArrayDelete(pointers)
+        pointers = (c_void_p * len(pointers))(*pointers)
+
+        # Get the data:
+        if raw:
+            api.tiepie_hw_oscilloscope_get_data_raw(self._handle, pointers, channel_count, start, length)
+        else:
+            api.tiepie_hw_oscilloscope_get_data(self._handle, pointers, channel_count, start, length)
+        library.check_last_status_raise_on_error()
+
+        return result
+
+    def get_data_numpy(self, count=None):
+        """ Get the measurement data for enabled channels.
+
+        :param count: Number of samples to read, defaults to all.
+
+        :returns: A 2-dimensional array with float sample data.
+        .. version added:: 1.0
+        """
+
+        if not self.is_data_ready:
+            raise UnsuccessfulError()
+
+        channel_count = len(self.channels)
+
+        # Calculate valid data start/length:
+        if self._measure_mode == MM_BLOCK:
+            length = int(self._record_length - round(self._pre_sample_ratio * self._record_length) + self.valid_pre_sample_count)
+            start = self._record_length - length
+        else:
+            length = self._record_length
+            start = 0
+
+        if (count is not None) and (count >= 0) and (count < length):
+            length = count
+
+        result = np.empty([channel_count, length], dtype=np.float32)
+
+        pointers = [c_void_p(0)] * channel_count
+        for i in range(channel_count):
+            if not self._active_channels[i]:
+                result[i].fill(np.NAN)
+
+            if self._active_channels[i]:
+                pointers[i] = cast(np.ctypeslib.as_ctypes(result)[i], c_void_p)
+
+        pointers = (c_void_p * len(pointers))(*pointers)
+
+        api.tiepie_hw_oscilloscope_get_data(self._handle, pointers, channel_count, start, length)
+        library.check_last_status_raise_on_error()
 
         return result
 
     def _get_valid_pre_sample_count(self):
         """ Number of valid pre samples in the measurement. """
-        value = api.ScpGetValidPreSampleCount(self._handle)
+        value = api.tiepie_hw_oscilloscope_get_valid_pre_sample_count(self._handle)
         library.check_last_status_raise_on_error()
         return value
 
@@ -105,198 +166,14 @@ class Oscilloscope(Device):
         :param start_index: Position in record to start reading.
         :param sample_count: Number of samples to read.
         :returns: Number of samples read.
+        .. version added:: 1.0
         """
-        result = api.ScpGetDataRaw(self._handle, buffers, channel_count, start_index, sample_count)
+        result = api.tiepie_hw_oscilloscope_get_data_raw(self._handle, buffers, channel_count, start_index, sample_count)
         library.check_last_status_raise_on_error()
         return result
 
-    def get_data_async_completed(self):
-        """ Check whether the data download is completed.
-
-        :returns: ``True`` if completed, ``False`` otherwise.
-        """
-        result = api.ScpIsGetDataAsyncCompleted(self._handle)
-        library.check_last_status_raise_on_error()
-        return result != BOOL8_FALSE
-
-    def start_get_data_async(self, buffers, channel_count, start_index, sample_count):
-        """ Start the download of measurement data for specified channels.
-
-        :param buffers: A pointer to a buffer with pointers to buffers for channel data, the pointer buffer may contain ``None`` pointers.
-        :param channel_count: The number of pointers in the pointer buffer.
-        :param start_index: The position in the record to start reading.
-        :param sample_count: The number of samples to read.
-        .. versionadded:: 0.6
-        """
-        api.ScpStartGetDataAsync(self._handle, buffers, channel_count, start_index, sample_count)
-        library.check_last_status_raise_on_error()
-
-    def start_get_data_async_raw(self, buffers, channel_count, start_index, sample_count):
-        """ Start the download of raw measurement data for specified channels.
-
-        :param buffers: Pointer to buffer with pointers to buffer for channel data, pointer buffer may contain ``None`` pointers.
-        :param channel_count: Number of pointers in pointer buffer.
-        :param start_index: Position in record to start reading.
-        :param sample_count: Number of samples to read.
-        .. versionadded:: 0.6
-        """
-        api.ScpStartGetDataAsyncRaw(self._handle, buffers, channel_count, start_index, sample_count)
-        library.check_last_status_raise_on_error()
-
-    def cancel_get_data_async(self):
-        """ Cancel the download of measurement data.
-
-        :returns: ``True`` if successful, ``False`` otherwise.
-        .. versionadded:: 0.6
-        """
-        result = api.ScpCancelGetDataAsync(self._handle)
-        library.check_last_status_raise_on_error()
-        return result != BOOL8_FALSE
-
-    def set_callback_data_ready(self, callback, data):
-        """ Set a callback function which is called when the oscilloscope has new measurement data ready.
-
-        :param callback: A pointer to the callback function. Use ``None`` to disable.
-        :param data: Optional user data.
-        """
-        api.ScpSetCallbackDataReady(self._handle, callback, data)
-        library.check_last_status_raise_on_error()
-
-    def set_callback_data_overflow(self, callback, data):
-        """ Set a callback function which is called when the oscilloscope streaming measurement caused an data overflow.
-
-        :param callback: A pointer to the callback function. Use ``None`` to disable.
-        :param data: Optional user data.
-        """
-        api.ScpSetCallbackDataOverflow(self._handle, callback, data)
-        library.check_last_status_raise_on_error()
-
-    def set_callback_connection_test_completed(self, callback, data):
-        """ Set a callback function which is called when the oscilloscope connection test is completed.
-
-        :param callback: A pointer to the callback function. Use ``None`` to disable.
-        :param data: Optional user data.
-        """
-        api.ScpSetCallbackConnectionTestCompleted(self._handle, callback, data)
-        library.check_last_status_raise_on_error()
-
-    def set_callback_triggered(self, callback, data):
-        """ Set a callback function which is called when the oscilloscope is triggered.
-
-        :param callback: A pointer to the callback function. Use ``None`` to disable.
-        :param data: Optional user data.
-        """
-        api.ScpSetCallbackTriggered(self._handle, callback, data)
-        library.check_last_status_raise_on_error()
-
-    if platform.system() == 'Linux':
-        def set_event_data_ready(self, event):
-            """ Set an event file descriptor which is set when the oscilloscope has new measurement data ready.
-
-            :param event: An event file descriptor. Use ``&lt;0`` to disable.
-            """
-            api.ScpSetEventDataReady(self._handle, event)
-            library.check_last_status_raise_on_error()
-
-        def set_event_data_overflow(self, event):
-            """ Set an event file descriptor which is set when the oscilloscope streaming measurement caused an data overflow.
-
-            :param event: An event file descriptor. Use ``&lt;0`` to disable.
-            """
-            api.ScpSetEventDataOverflow(self._handle, event)
-            library.check_last_status_raise_on_error()
-
-        def set_event_connection_test_completed(self, event):
-            """ Set an event file descriptor which is set when the oscilloscope connection test is completed.
-
-            :param event: An event file descriptor. Use ``&lt;0`` to disable.
-            """
-            api.ScpSetEventConnectionTestCompleted(self._handle, event)
-            library.check_last_status_raise_on_error()
-
-        def set_event_triggered(self, event):
-            """ Set an event file descriptor which is set when the oscilloscope is triggered.
-
-            :param event: An event file descriptor. Use ``&lt;0`` to disable.
-            """
-            api.ScpSetEventTriggered(self._handle, event)
-            library.check_last_status_raise_on_error()
-
-    if platform.system() == 'Windows':
-        def set_event_data_ready(self, event):
-            """ Set an event object handle which is set when the oscilloscope has new measurement data ready.
-
-            :param event: A handle to the event object. Use ``None`` to disable.
-            """
-            api.ScpSetEventDataReady(self._handle, event)
-            library.check_last_status_raise_on_error()
-
-        def set_event_data_overflow(self, event):
-            """ Set an event object handle which is set when the oscilloscope streaming measurement caused an data overflow.
-
-            :param event: A handle to the event object. Use ``None`` to disable.
-            """
-            api.ScpSetEventDataOverflow(self._handle, event)
-            library.check_last_status_raise_on_error()
-
-        def set_event_connection_test_completed(self, event):
-            """ Set an event object handle which is set when the oscilloscope connection test is completed.
-
-            :param event: A handle to the event object. Use ``None`` to disable.
-            """
-            api.ScpSetEventConnectionTestCompleted(self._handle, event)
-            library.check_last_status_raise_on_error()
-
-        def set_event_triggered(self, event):
-            """ Set an event object handle which is set when the oscilloscope is triggered.
-
-            :param event: A handle to the event object. Use ``None`` to disable.
-            """
-            api.ScpSetEventTriggered(self._handle, event)
-            library.check_last_status_raise_on_error()
-
-        def set_message_data_ready(self, wnd, wparam, lparam):
-            """ Set a window handle to which a #WM_LIBTIEPIE_SCP_DATAREADY message is sent when the oscilloscope has new measurement data ready.
-
-            :param wnd: A handle to the window whose window procedure is to receive the message. Use ``None`` to disable.
-            :param wparam: Optional user value for the ``wParam`` parameter of the message.
-            :param lparam: Optional user value for the ``lParam`` parameter of the message.
-            """
-            api.ScpSetMessageDataReady(self._handle, wnd, wparam, lparam)
-            library.check_last_status_raise_on_error()
-
-        def set_message_data_overflow(self, wnd, wparam, lparam):
-            """ Set a window handle to which a #WM_LIBTIEPIE_SCP_DATAOVERFLOW message is sent when the oscilloscope streaming measurement caused an data overflow.
-
-            :param wnd: A handle to the window whose window procedure is to receive the message. Use ``None`` to disable.
-            :param wparam: Optional user value for the ``wParam`` parameter of the message.
-            :param lparam: Optional user value for the ``lParam`` parameter of the message.
-            """
-            api.ScpSetMessageDataOverflow(self._handle, wnd, wparam, lparam)
-            library.check_last_status_raise_on_error()
-
-        def set_message_connection_test_completed(self, wnd, wparam, lparam):
-            """ Set a window handle to which a #WM_LIBTIEPIE_SCP_CONNECTIONTESTCOMPLETED message is sent when the oscilloscope connection test is completed.
-
-            :param wnd: A handle to the window whose window procedure is to receive the message. Use ``None`` to disable.
-            :param wparam: Optional user value for the ``wParam`` parameter of the message.
-            :param lparam: Optional user value for the ``lParam`` parameter of the message.
-            """
-            api.ScpSetMessageConnectionTestCompleted(self._handle, wnd, wparam, lparam)
-            library.check_last_status_raise_on_error()
-
-        def set_message_triggered(self, wnd, wparam, lparam):
-            """ Set a window handle to which a #WM_LIBTIEPIE_SCP_TRIGGERED message is sent when the oscilloscope is triggered.
-
-            :param wnd: A handle to the window whose window procedure is to receive the message. Use ``None`` to disable.
-            :param wparam: Optional user value for the ``wParam`` parameter of the message.
-            :param lparam: Optional user value for the ``lParam`` parameter of the message.
-            """
-            api.ScpSetMessageTriggered(self._handle, wnd, wparam, lparam)
-            library.check_last_status_raise_on_error()
-
     def start(self):
-        """ Start a single measurement. """
+        """  """
         if self.is_running:
             raise MeasurementRunningError()
 
@@ -309,380 +186,482 @@ class Oscilloscope(Device):
         for ch in self.channels:
             self._active_channels.append(ch.enabled)
 
-        result = api.ScpStart(self._handle)
+        result = api.tiepie_hw_oscilloscope_start(self._handle)
         library.check_last_status_raise_on_error()
-        return result != BOOL8_FALSE
+        return result
 
     def stop(self):
         """ Stop a running measurement.
 
+        .. version added:: 1.0
         """
-        api.ScpStop(self._handle)
+        api.tiepie_hw_oscilloscope_stop(self._handle)
         library.check_last_status_raise_on_error()
 
     def force_trigger(self):
         """ Force a trigger.
 
+        .. version added:: 1.0
         """
-        api.ScpForceTrigger(self._handle)
+        api.tiepie_hw_oscilloscope_force_trigger(self._handle)
         library.check_last_status_raise_on_error()
 
     def _get_measure_modes(self):
-        """ Supported measure modes. """
-        value = api.ScpGetMeasureModes(self._handle)
+        """  """
+        value = api.tiepie_hw_oscilloscope_get_measure_modes(self._handle)
         library.check_last_status_raise_on_error()
         return value
 
     def _get_measure_mode(self):
         """ Current measure mode. """
-        value = api.ScpGetMeasureMode(self._handle)
+        value = api.tiepie_hw_oscilloscope_get_measure_mode(self._handle)
         library.check_last_status_raise_on_error()
         return value
 
     def _set_measure_mode(self, value):
-        api.ScpSetMeasureMode(self._handle, value)
+        api.tiepie_hw_oscilloscope_set_measure_mode(self._handle, value)
         library.check_last_status_raise_on_error()
 
     def _get_is_running(self):
-        """ Check whether the oscilloscope is currently measuring. """
-        value = api.ScpIsRunning(self._handle)
+        """  """
+        value = api.tiepie_hw_oscilloscope_is_running(self._handle)
         library.check_last_status_raise_on_error()
-        return value != BOOL8_FALSE
+        return value != BOOL_FALSE
 
     def _get_is_triggered(self):
         """ Check whether the oscilloscope has triggered. """
-        value = api.ScpIsTriggered(self._handle)
+        value = api.tiepie_hw_oscilloscope_is_triggered(self._handle)
         library.check_last_status_raise_on_error()
-        return value != BOOL8_FALSE
+        return value != BOOL_FALSE
 
-    def _get_is_time_out_triggered(self):
+    def _get_is_timeout_triggered(self):
         """ Check whether the trigger was caused by the trigger time out. """
-        value = api.ScpIsTimeOutTriggered(self._handle)
+        value = api.tiepie_hw_oscilloscope_is_timeout_triggered(self._handle)
         library.check_last_status_raise_on_error()
-        return value != BOOL8_FALSE
+        return value != BOOL_FALSE
 
     def _get_is_force_triggered(self):
-        """ Check whether the trigger was caused by ScpForceTrigger. """
-        value = api.ScpIsForceTriggered(self._handle)
+        """ Check whether the trigger was caused by tiepie_hw_oscilloscope_force_trigger. """
+        value = api.tiepie_hw_oscilloscope_is_force_triggered(self._handle)
         library.check_last_status_raise_on_error()
-        return value != BOOL8_FALSE
+        return value != BOOL_FALSE
 
     def _get_is_data_ready(self):
         """ Check whether new, unread measured data is available. """
-        value = api.ScpIsDataReady(self._handle)
+        value = api.tiepie_hw_oscilloscope_is_data_ready(self._handle)
         library.check_last_status_raise_on_error()
-        return value != BOOL8_FALSE
+        return value != BOOL_FALSE
 
     def _get_is_data_overflow(self):
         """ Check whether a data overflow has occurred. """
-        value = api.ScpIsDataOverflow(self._handle)
+        value = api.tiepie_hw_oscilloscope_is_data_overflow(self._handle)
         library.check_last_status_raise_on_error()
-        return value != BOOL8_FALSE
+        return value != BOOL_FALSE
 
     def _get_auto_resolution_modes(self):
-        """ Supported auto resolution modes. """
-        value = api.ScpGetAutoResolutionModes(self._handle)
+        """  """
+        value = api.tiepie_hw_oscilloscope_get_auto_resolution_modes(self._handle)
         library.check_last_status_raise_on_error()
         return value
 
     def _get_auto_resolution_mode(self):
         """ Current auto resolution mode. """
-        value = api.ScpGetAutoResolutionMode(self._handle)
+        value = api.tiepie_hw_oscilloscope_get_auto_resolution_mode(self._handle)
         library.check_last_status_raise_on_error()
         return value
 
     def _set_auto_resolution_mode(self, value):
-        api.ScpSetAutoResolutionMode(self._handle, value)
+        api.tiepie_hw_oscilloscope_set_auto_resolution_mode(self._handle, value)
         library.check_last_status_raise_on_error()
 
     def _get_resolutions(self):
         """ :class:`array.array` of supported resolutions. """
-        count = api.ScpGetResolutions(self._handle, None, 0)
+        count = api.tiepie_hw_oscilloscope_get_resolutions(self._handle, None, 0)
         library.check_last_status_raise_on_error()
         values = (c_uint8 * count)()
-        api.ScpGetResolutions(self._handle, values, count)
+        api.tiepie_hw_oscilloscope_get_resolutions(self._handle, values, count)
         library.check_last_status_raise_on_error()
         return array('B', values)
 
     def _get_resolution(self):
         """ Current resolution. """
-        value = api.ScpGetResolution(self._handle)
+        value = api.tiepie_hw_oscilloscope_get_resolution(self._handle)
         library.check_last_status_raise_on_error()
         return value
 
     def _set_resolution(self, value):
-        api.ScpSetResolution(self._handle, value)
+        api.tiepie_hw_oscilloscope_set_resolution(self._handle, value)
         library.check_last_status_raise_on_error()
 
     def _get_is_resolution_enhanced(self):
         """ Check whether the currently selected resolution is enhanced or a native resolution of the hardware. """
-        value = api.ScpIsResolutionEnhanced(self._handle)
+        value = api.tiepie_hw_oscilloscope_is_resolution_enhanced(self._handle)
         library.check_last_status_raise_on_error()
-        return value != BOOL8_FALSE
+        return value != BOOL_FALSE
+
+    def is_resolution_enhanced_ex(self, value):
+        """ Check whether resolution is enhanced.
+
+        :param value: Resolution in bits.
+        :returns: ``True`` if resolution is enhanced, ``False`` otherwise.
+        .. version added:: 1.0
+        """
+        result = api.tiepie_hw_oscilloscope_is_resolution_enhanced_ex(self._handle, value)
+        library.check_last_status_raise_on_error()
+        return result != BOOL_FALSE
 
     def _get_clock_sources(self):
-        """ Supported clock sources. """
-        value = api.ScpGetClockSources(self._handle)
+        """  """
+        value = api.tiepie_hw_oscilloscope_get_clock_sources(self._handle)
         library.check_last_status_raise_on_error()
         return value
 
     def _get_clock_source(self):
         """ Currently selected clock source. """
-        value = api.ScpGetClockSource(self._handle)
+        value = api.tiepie_hw_oscilloscope_get_clock_source(self._handle)
         library.check_last_status_raise_on_error()
         return value
 
     def _set_clock_source(self, value):
-        api.ScpSetClockSource(self._handle, value)
+        api.tiepie_hw_oscilloscope_set_clock_source(self._handle, value)
         library.check_last_status_raise_on_error()
 
     def _get_clock_source_frequencies(self):
         """ :class:`array.array` of supported clock source frequencies. """
-        count = api.ScpGetClockSourceFrequencies(self._handle, None, 0)
+        count = api.tiepie_hw_oscilloscope_get_clock_source_frequencies(self._handle, None, 0)
         library.check_last_status_raise_on_error()
         values = (c_double * count)()
-        api.ScpGetClockSourceFrequencies(self._handle, values, count)
+        api.tiepie_hw_oscilloscope_get_clock_source_frequencies(self._handle, values, count)
         library.check_last_status_raise_on_error()
         return array('d', values)
 
+    def get_clock_source_frequencies_ex(self, value, list, length):
+        """ Get an array with the supported clock source frequencies for the specified clock source.
+
+        :param value: The requested clock source, a TIEPIE_HW_CS_* value.
+        :param list: A pointer to an array for the clock source frequencies, or ``None.``
+        :param length: The number of elements in the array.
+        :returns: Total number of supported clock source frequencies, or ``0`` when unsuccessful.
+        .. version added:: 1.0
+        """
+        result = api.tiepie_hw_oscilloscope_get_clock_source_frequencies_ex(self._handle, value, list, length)
+        library.check_last_status_raise_on_error()
+        return result
+
     def _get_clock_source_frequency(self):
         """ Current clock source frequency. """
-        value = api.ScpGetClockSourceFrequency(self._handle)
+        value = api.tiepie_hw_oscilloscope_get_clock_source_frequency(self._handle)
         library.check_last_status_raise_on_error()
         return value
 
     def _set_clock_source_frequency(self, value):
-        api.ScpSetClockSourceFrequency(self._handle, value)
+        api.tiepie_hw_oscilloscope_set_clock_source_frequency(self._handle, value)
         library.check_last_status_raise_on_error()
 
     def _get_clock_outputs(self):
-        """ Supported clock outputs. """
-        value = api.ScpGetClockOutputs(self._handle)
+        """  """
+        value = api.tiepie_hw_oscilloscope_get_clock_outputs(self._handle)
         library.check_last_status_raise_on_error()
         return value
 
     def _get_clock_output(self):
         """ Currently selected clock output. """
-        value = api.ScpGetClockOutput(self._handle)
+        value = api.tiepie_hw_oscilloscope_get_clock_output(self._handle)
         library.check_last_status_raise_on_error()
         return value
 
     def _set_clock_output(self, value):
-        api.ScpSetClockOutput(self._handle, value)
+        api.tiepie_hw_oscilloscope_set_clock_output(self._handle, value)
         library.check_last_status_raise_on_error()
 
     def _get_clock_output_frequencies(self):
         """ :class:`array.array` of supported clock output frequencies. """
-        count = api.ScpGetClockOutputFrequencies(self._handle, None, 0)
+        count = api.tiepie_hw_oscilloscope_get_clock_output_frequencies(self._handle, None, 0)
         library.check_last_status_raise_on_error()
         values = (c_double * count)()
-        api.ScpGetClockOutputFrequencies(self._handle, values, count)
+        api.tiepie_hw_oscilloscope_get_clock_output_frequencies(self._handle, values, count)
         library.check_last_status_raise_on_error()
         return array('d', values)
 
+    def get_clock_output_frequencies_ex(self, clock_output, list, length):
+        """ Get an array with the supported clock output frequencies for the specified clock output.
+
+        :param clock_output: The requested clock output, a TIEPIE_HW_CS_* value.
+        :param list: A pointer to an array for the clock output frequencies, or ``None.``
+        :param length: The number of elements in the array.
+        :returns: Total number of supported clock output frequencies, or ``0`` when unsuccessful.
+        .. version added:: 1.0
+        """
+        result = api.tiepie_hw_oscilloscope_get_clock_output_frequencies_ex(self._handle, clock_output, list, length)
+        library.check_last_status_raise_on_error()
+        return result
+
     def _get_clock_output_frequency(self):
         """ Current clock output frequency. """
-        value = api.ScpGetClockOutputFrequency(self._handle)
+        value = api.tiepie_hw_oscilloscope_get_clock_output_frequency(self._handle)
         library.check_last_status_raise_on_error()
         return value
 
     def _set_clock_output_frequency(self, value):
-        api.ScpSetClockOutputFrequency(self._handle, value)
+        api.tiepie_hw_oscilloscope_set_clock_output_frequency(self._handle, value)
         library.check_last_status_raise_on_error()
 
-    def _get_sample_frequency_max(self):
-        """ Maximum supported sample frequency. """
-        value = api.ScpGetSampleFrequencyMax(self._handle)
-        library.check_last_status_raise_on_error()
-        return value
-
-    def _get_sample_frequency(self):
-        """ Currently selected sample frequency. """
-        value = api.ScpGetSampleFrequency(self._handle)
+    def _get_sample_rate_max(self):
+        """  """
+        value = api.tiepie_hw_oscilloscope_get_sample_rate_max(self._handle)
         library.check_last_status_raise_on_error()
         return value
 
-    def _set_sample_frequency(self, value):
-        api.ScpSetSampleFrequency(self._handle, value)
+    def _get_sample_rate(self):
+        """ Currently selected sample rate. """
+        value = api.tiepie_hw_oscilloscope_get_sample_rate(self._handle)
+        library.check_last_status_raise_on_error()
+        return value
+
+    def _set_sample_rate(self, value):
+        api.tiepie_hw_oscilloscope_set_sample_rate(self._handle, value)
         library.check_last_status_raise_on_error()
 
-    def verify_sample_frequency(self, sample_frequency):
-        """ Verify if a required sample frequency can be set, without actually setting the hardware itself.
+    def verify_sample_rate(self, value):
+        """ Verify if a required sample rate can be set, without actually setting the hardware itself.
 
-        :param sample_frequency: The required sample frequency, in Hz.
-        :returns: The sample frequency that would have been set, if ScpSetSampleFrequency() was used.
+        :param value: The required sample rate, in Hz.
+        :returns: The sample rate that would have been set, if tiepie_hw_oscilloscope_set_sample_rate() was used.
+        .. version added:: 1.0
         """
-        result = api.ScpVerifySampleFrequency(self._handle, sample_frequency)
+        result = api.tiepie_hw_oscilloscope_verify_sample_rate(self._handle, value)
         library.check_last_status_raise_on_error()
         return result
 
+    def verify_sample_rate_ex(self, value, measure_mode, resolution, channel_enabled, channel_count):
+        """ Verify sample rate by measure mode, resolution and active channels.
+
+        :param value: The required sample rate, in Hz.
+        :param measure_mode: Measure mode, a TIEPIE_HW_MM_* value.
+        :param resolution: Resolution in bits.
+        :param channel_enabled: Pointer to buffer with channel enables.
+        :param channel_count: Number of items in ``channel_enabled.``
+        :returns: Sample rate in Hz when set.
+        .. version added:: 1.0
+        """
+        result = api.tiepie_hw_oscilloscope_verify_sample_rate_ex(self._handle, value, measure_mode, resolution, channel_enabled, channel_count)
+        library.check_last_status_raise_on_error()
+        return result
+
+    def verify_sample_rates_ex(self, values, count, measure_mode, auto_resolution_mode, resolution, channel_enabled, channel_count):
+        """ Verify sample rates by measure mode, resolution mode, resolution and active channels.
+
+        :param values: Pointer to buffer with sample frequencies.
+        :param count: Number of items in ``values.``
+        :param measure_mode: Measure mode, a TIEPIE_HW_MM_* value.
+        :param auto_resolution_mode: Auto resolution mode, a TIEPIE_HW_ARM_* value.
+        :param resolution: Resolution in bits.
+        :param channel_enabled: Pointer to buffer with channel enables.
+        :param channel_count: Number of items in ``channel_enabled.``
+        .. version added:: 1.0
+        """
+        api.tiepie_hw_oscilloscope_verify_sample_rates_ex(self._handle, values, count, measure_mode, auto_resolution_mode, resolution, channel_enabled, channel_count)
+        library.check_last_status_raise_on_error()
+
     def _get_record_length_max(self):
-        """ Maximum supported record length. """
-        value = api.ScpGetRecordLengthMax(self._handle)
+        """  """
+        value = api.tiepie_hw_oscilloscope_get_record_length_max(self._handle)
         library.check_last_status_raise_on_error()
         return value
 
+    def get_record_length_max_ex(self, measure_mode, resolution):
+        """ Get maximum record length for a specified measure mode and resolution.
+
+        :param measure_mode: Measure mode, a TIEPIE_HW_MM_* value.
+        :param resolution: Resolution in bits.
+        :returns: _max_imum record length.
+        .. version added:: 1.0
+        """
+        result = api.tiepie_hw_oscilloscope_get_record_length_max_ex(self._handle, measure_mode, resolution)
+        library.check_last_status_raise_on_error()
+        return result
+
     def _get_record_length(self):
         """ Currently selected record length. """
-        value = api.ScpGetRecordLength(self._handle)
+        value = api.tiepie_hw_oscilloscope_get_record_length(self._handle)
         library.check_last_status_raise_on_error()
         return value
 
     def _set_record_length(self, value):
-        api.ScpSetRecordLength(self._handle, value)
+        api.tiepie_hw_oscilloscope_set_record_length(self._handle, value)
         library.check_last_status_raise_on_error()
 
     def verify_record_length(self, record_length):
         """ Verify if a required record length can be set, without actually setting the hardware itself.
 
         :param record_length: The required record length, in samples.
-        :returns: The record length that would have been set, if ScpSetRecordLength() was used.
+        :returns: The record length that would have been set, if tiepie_hw_oscilloscope_set_record_length() was used.
+        .. version added:: 1.0
         """
-        result = api.ScpVerifyRecordLength(self._handle, record_length)
+        result = api.tiepie_hw_oscilloscope_verify_record_length(self._handle, record_length)
+        library.check_last_status_raise_on_error()
+        return result
+
+    def verify_record_length_ex(self, record_length, measure_mode, resolution, channel_enabled, channel_count):
+        """ Verify record length by measure mode, resolution and active channels.
+
+        :param record_length: Record length.
+        :param measure_mode: Measure mode, a TIEPIE_HW_MM_* value.
+        :param resolution: Resolution in bits.
+        :param channel_enabled: Pointer to buffer with channel enables.
+        :param channel_count: Number of items in ``channel_enabled.``
+        :returns: Record length.
+        .. version added:: 1.0
+        """
+        result = api.tiepie_hw_oscilloscope_verify_record_length_ex(self._handle, record_length, measure_mode, resolution, channel_enabled, channel_count)
         library.check_last_status_raise_on_error()
         return result
 
     def _get_pre_sample_ratio(self):
-        """ Current pre sample ratio. """
-        value = api.ScpGetPreSampleRatio(self._handle)
+        """  """
+        value = api.tiepie_hw_oscilloscope_get_pre_sample_ratio(self._handle)
         library.check_last_status_raise_on_error()
         return value
 
     def _set_pre_sample_ratio(self, value):
-        api.ScpSetPreSampleRatio(self._handle, value)
+        api.tiepie_hw_oscilloscope_set_pre_sample_ratio(self._handle, value)
         library.check_last_status_raise_on_error()
 
     def _get_segment_count_max(self):
-        """ Maximum supported number of segments. """
-        value = api.ScpGetSegmentCountMax(self._handle)
+        """  """
+        value = api.tiepie_hw_oscilloscope_get_segment_count_max(self._handle)
         library.check_last_status_raise_on_error()
         return value
 
+    def get_segment_count_max_ex(self, measure_mode):
+        """ Get the maximum supported number of segments for a specified measure mode.
+
+        :param measure_mode: Measure mode, a TIEPIE_HW_MM_* value.
+        :returns: The maximum supported number of segments, or ``0`` when unsuccessful.
+        .. version added:: 1.0
+        """
+        result = api.tiepie_hw_oscilloscope_get_segment_count_max_ex(self._handle, measure_mode)
+        library.check_last_status_raise_on_error()
+        return result
+
     def _get_segment_count(self):
         """ Currently selected number of segments. """
-        value = api.ScpGetSegmentCount(self._handle)
+        value = api.tiepie_hw_oscilloscope_get_segment_count(self._handle)
         library.check_last_status_raise_on_error()
         return value
 
     def _set_segment_count(self, value):
-        api.ScpSetSegmentCount(self._handle, value)
+        api.tiepie_hw_oscilloscope_set_segment_count(self._handle, value)
         library.check_last_status_raise_on_error()
 
-    def verify_segment_count(self, segment_count):
+    def verify_segment_count(self, value):
         """ Verify if a required number of segments can be set, without actually setting the hardware itself.
 
-        :param segment_count: The required number of segments.
-        :returns: The actually number of segments that would have been set, if ScpSetSegmentCount() was used.
+        :param value: The required number of segments.
+        :returns: The actually number of segments that would have been set, if tiepie_hw_oscilloscope_set_segment_count() was used.
+        .. version added:: 1.0
         """
-        result = api.ScpVerifySegmentCount(self._handle, segment_count)
+        result = api.tiepie_hw_oscilloscope_verify_segment_count(self._handle, value)
+        library.check_last_status_raise_on_error()
+        return result
+
+    def verify_segment_count_ex(self, value, measure_mode, record_length, channel_enabled, channel_count):
+        """ Verify number of segments by measure mode, record length and enabled channels.
+
+        :param value: The required number of segments.
+        :param measure_mode: Measure mode, a TIEPIE_HW_MM_* value.
+        :param record_length: Record length in samples.
+        :param channel_enabled: Pointer to buffer with channel enables.
+        :param channel_count: Number of items in ``channel_enabled.``
+        :returns: The actually number of segments that would have been set.
+        .. version added:: 1.0
+        """
+        result = api.tiepie_hw_oscilloscope_verify_segment_count_ex(self._handle, value, measure_mode, record_length, channel_enabled, channel_count)
         library.check_last_status_raise_on_error()
         return result
 
     def _get_has_trigger(self):
-        """ Check whether the oscilloscope has trigger support with the currently selected measure mode. """
-        value = api.ScpHasTrigger(self._handle)
+        """  """
+        value = api.tiepie_hw_oscilloscope_has_trigger(self._handle)
         library.check_last_status_raise_on_error()
-        return value != BOOL8_FALSE
+        return value != BOOL_FALSE
 
-    def _get_trigger_time_out(self):
-        """ Currently selected trigger time out in seconds. """
-        value = api.ScpGetTriggerTimeOut(self._handle)
-        library.check_last_status_raise_on_error()
-        return value
+    def has_trigger_ex(self, measure_mode):
+        """ Check whether the oscilloscope has trigger support for a specified measure mode.
 
-    def _set_trigger_time_out(self, value):
-        api.ScpSetTriggerTimeOut(self._handle, value)
-        library.check_last_status_raise_on_error()
-
-    def verify_trigger_time_out(self, time_out):
-        """ Verify if a required trigger time out can be set, without actually setting the hardware itself.
-
-        :param time_out: The required trigger time out in seconds, or #TO_INFINITY.
-        :returns: The trigger time out that would have been set, if ScpSetTriggerTimeOut() was used.
+        :param measure_mode: Measure mode, a TIEPIE_HW_MM_* value.
+        :returns: ``True`` if the oscilloscope has trigger support, ``False`` otherwise.
+        .. version added:: 1.0
         """
-        result = api.ScpVerifyTriggerTimeOut(self._handle, time_out)
+        result = api.tiepie_hw_oscilloscope_has_trigger_ex(self._handle, measure_mode)
         library.check_last_status_raise_on_error()
-        return result
+        return result != BOOL_FALSE
 
-    def _get_has_trigger_delay(self):
-        """ Check whether the oscilloscope has trigger delay support with the currently selected measure mode. """
-        value = api.ScpHasTriggerDelay(self._handle)
+    def _get_has_presamples_valid(self):
+        """  """
+        value = api.tiepie_hw_oscilloscope_has_presamples_valid(self._handle)
         library.check_last_status_raise_on_error()
-        return value != BOOL8_FALSE
+        return value != BOOL_FALSE
 
-    def _get_trigger_delay_max(self):
-        """ Maximum trigger delay in seconds, for the currently selected measure mode and sample frequency. """
-        value = api.ScpGetTriggerDelayMax(self._handle)
-        library.check_last_status_raise_on_error()
-        return value
+    def has_presamples_valid_ex(self, measure_mode):
+        """ Check whether the oscilloscope has presamples valid support for a specific measure mode.
 
-    def _get_trigger_delay(self):
-        """ Currently selected trigger delay in seconds. """
-        value = api.ScpGetTriggerDelay(self._handle)
-        library.check_last_status_raise_on_error()
-        return value
-
-    def _set_trigger_delay(self, value):
-        api.ScpSetTriggerDelay(self._handle, value)
-        library.check_last_status_raise_on_error()
-
-    def verify_trigger_delay(self, delay):
-        """ Verify if a required trigger delay can be set, without actually setting the hardware itself.
-
-        :param delay: The required trigger delay in seconds.
-        :returns: The trigger delay that would have been set, if ScpSetTriggerDelay() was used.
+        :param measure_mode: Measure mode, a TIEPIE_HW_MM_* value.
+        :returns: ``True`` if the oscilloscope has presamples valid support, ``False`` otherwise.
+        .. version added:: 1.0.1
         """
-        result = api.ScpVerifyTriggerDelay(self._handle, delay)
+        result = api.tiepie_hw_oscilloscope_has_presamples_valid_ex(self._handle, measure_mode)
         library.check_last_status_raise_on_error()
-        return result
+        return result != BOOL_FALSE
 
-    def _get_has_trigger_hold_off(self):
-        """ Check whether the oscilloscope has trigger hold off support with the currently selected measure mode. """
-        value = api.ScpHasTriggerHoldOff(self._handle)
+    def _get_presamples_valid(self):
+        """ Get presamples valid for a specified measure mode. """
+        value = api.tiepie_hw_oscilloscope_get_presamples_valid(self._handle)
         library.check_last_status_raise_on_error()
-        return value != BOOL8_FALSE
+        return value != BOOL_FALSE
 
-    def _get_trigger_hold_off_count_max(self):
-        """ Maximum trigger hold off count in samples. """
-        value = api.ScpGetTriggerHoldOffCountMax(self._handle)
-        library.check_last_status_raise_on_error()
-        return value
-
-    def _get_trigger_hold_off_count(self):
-        """ Trigger hold off count in samples. """
-        value = api.ScpGetTriggerHoldOffCount(self._handle)
-        library.check_last_status_raise_on_error()
-        return value
-
-    def _set_trigger_hold_off_count(self, value):
-        api.ScpSetTriggerHoldOffCount(self._handle, value)
+    def _set_presamples_valid(self, value):
+        value = BOOL_TRUE if value else BOOL_FALSE
+        api.tiepie_hw_oscilloscope_set_presamples_valid(self._handle, value)
         library.check_last_status_raise_on_error()
 
-    def _get_has_connection_test(self):
-        """ Check whether the specified oscilloscope supports connection testing. """
-        value = api.ScpHasConnectionTest(self._handle)
+    def _get_has_sureconnect(self):
+        """  """
+        value = api.tiepie_hw_oscilloscope_has_sureconnect(self._handle)
         library.check_last_status_raise_on_error()
-        return value != BOOL8_FALSE
+        return value != BOOL_FALSE
 
-    def start_connection_test(self):
-        """ Perform a connection test on all enabled channels.
+    def start_sureconnect(self):
+        """ Perform a SureConnect connection test on all enabled channels.
 
+        .. version added:: 1.0
         """
-        api.ScpStartConnectionTest(self._handle)
+        api.tiepie_hw_oscilloscope_start_sureconnect(self._handle)
         library.check_last_status_raise_on_error()
 
-    def _get_is_connection_test_completed(self):
-        """ Check whether the connection test on a specified oscilloscope is completed. """
-        value = api.ScpIsConnectionTestCompleted(self._handle)
-        library.check_last_status_raise_on_error()
-        return value != BOOL8_FALSE
+    def start_sureconnect_ex(self, channel_enabled, channel_count):
+        """ Perform a SureConnect connection test on all channels.
 
-    def get_connection_test_data(self):
-        """ Get the connection test result data.
+        :param channel_enabled: A pointer to a buffer with channel enables.
+        :param channel_count: The number of items in ``channel_enabled.``
+        .. version added:: 1.0
+        """
+        api.tiepie_hw_oscilloscope_start_sureconnect_ex(self._handle, channel_enabled, channel_count)
+        library.check_last_status_raise_on_error()
+
+    def _get_is_sureconnect_completed(self):
+        """ Check whether the SureConnect connection test on a specified oscilloscope is completed. """
+        value = api.tiepie_hw_oscilloscope_is_sureconnect_completed(self._handle)
+        library.check_last_status_raise_on_error()
+        return value != BOOL_FALSE
+
+    def get_sureconnect_data(self):
+        """ Get the SureConnect connection test result data.
 
         :returns: :class:`list` of :class:`.TriState` values.
+        .. version added:: 1.0
         """
-        if not self.is_connection_test_completed:
+        if not self.is_sureconnect_completed:
             raise UnsuccessfulError()
 
         channel_count = len(self.channels)
@@ -691,7 +670,7 @@ class Oscilloscope(Device):
         buffer = (c_uint8 * channel_count)()
 
         # Get the data:
-        channel_count = api.ScpGetConnectionTestData(self._handle, buffer, channel_count)
+        channel_count = api.tiepie_hw_oscilloscope_get_sureconnect_data(self._handle, buffer, channel_count)
         library.check_last_status_raise_on_error()
 
         # Create result array:
@@ -701,12 +680,13 @@ class Oscilloscope(Device):
 
         return result
 
+    is_demo = property(_get_is_demo)
     valid_pre_sample_count = property(_get_valid_pre_sample_count)
     measure_modes = property(_get_measure_modes)
     measure_mode = property(_get_measure_mode, _set_measure_mode)
     is_running = property(_get_is_running)
     is_triggered = property(_get_is_triggered)
-    is_time_out_triggered = property(_get_is_time_out_triggered)
+    is_timeout_triggered = property(_get_is_timeout_triggered)
     is_force_triggered = property(_get_is_force_triggered)
     is_data_ready = property(_get_is_data_ready)
     is_data_overflow = property(_get_is_data_overflow)
@@ -723,21 +703,17 @@ class Oscilloscope(Device):
     clock_output = property(_get_clock_output, _set_clock_output)
     clock_output_frequencies = property(_get_clock_output_frequencies)
     clock_output_frequency = property(_get_clock_output_frequency, _set_clock_output_frequency)
-    sample_frequency_max = property(_get_sample_frequency_max)
-    sample_frequency = property(_get_sample_frequency, _set_sample_frequency)
+    sample_rate_max = property(_get_sample_rate_max)
+    sample_rate = property(_get_sample_rate, _set_sample_rate)
     record_length_max = property(_get_record_length_max)
     record_length = property(_get_record_length, _set_record_length)
     pre_sample_ratio = property(_get_pre_sample_ratio, _set_pre_sample_ratio)
     segment_count_max = property(_get_segment_count_max)
     segment_count = property(_get_segment_count, _set_segment_count)
     has_trigger = property(_get_has_trigger)
-    trigger_time_out = property(_get_trigger_time_out, _set_trigger_time_out)
-    has_trigger_delay = property(_get_has_trigger_delay)
-    trigger_delay_max = property(_get_trigger_delay_max)
-    trigger_delay = property(_get_trigger_delay, _set_trigger_delay)
-    has_trigger_hold_off = property(_get_has_trigger_hold_off)
-    trigger_hold_off_count_max = property(_get_trigger_hold_off_count_max)
-    trigger_hold_off_count = property(_get_trigger_hold_off_count, _set_trigger_hold_off_count)
-    has_connection_test = property(_get_has_connection_test)
-    is_connection_test_completed = property(_get_is_connection_test_completed)
+    has_presamples_valid = property(_get_has_presamples_valid)
+    presamples_valid = property(_get_presamples_valid, _set_presamples_valid)
+    has_sureconnect = property(_get_has_sureconnect)
+    is_sureconnect_completed = property(_get_is_sureconnect_completed)
     channels = property(_get_channels)
+    trigger = property(_get_trigger)

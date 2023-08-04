@@ -1,3 +1,11 @@
+""" python-libtiepie - Python interface for libtiepie-hw library
+
+Copyright (c) 2023 TiePie engineering
+
+Website: http://www.tiepie.com/LibTiePie
+
+"""
+
 from .api import api
 from .const import *
 from .library import library
@@ -13,37 +21,27 @@ class OscilloscopeChannelTriggerTimes(object):
 
     def __getitem__(self, index):
         try:
-            value = api.ScpChTrGetTime(self._handle, self._ch, index)
+            value = api.tiepie_hw_oscilloscope_channel_trigger_get_time(self._handle, self._ch, index)
             library.check_last_status_raise_on_error()
             return value
         except InvalidIndexError:
-            raise IndexError()
-        except NotSupportedError:
-            if api.ScpChHasTrigger(self._handle, self._ch) == BOOL8_TRUE:
-                raise IndexError()
-            else:
-                raise
+            raise IndexError('Index out of range')
 
     def __setitem__(self, index, value):
         try:
-            api.ScpChTrSetTime(self._handle, self._ch, index, value)
+            api.tiepie_hw_oscilloscope_channel_trigger_set_time(self._handle, self._ch, index, value)
             library.check_last_status_raise_on_error()
         except InvalidIndexError:
-            raise IndexError()
-        except NotSupportedError:
-            if api.ScpChHasTrigger(self._handle, self._ch) == BOOL8_TRUE:
-                raise IndexError()
-            else:
-                raise
+            raise IndexError('Index out of range')
 
     def __len__(self):
         return self.count
 
     def _get_count(self):
-        return api.ScpChTrGetTimeCount(self._handle, self._ch)
+        return api.tiepie_hw_oscilloscope_channel_trigger_get_time_count(self._handle, self._ch)
 
     def verify(self, index, value):
-        value = api.ScpChTrVerifyTime(self._handle, self._ch, index, value)
+        value = api.tiepie_hw_oscilloscope_channel_trigger_verify_time(self._handle, self._ch, index, value)
         library.check_last_status_raise_on_error()
         return value
 

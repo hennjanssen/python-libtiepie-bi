@@ -1,3 +1,11 @@
+""" python-libtiepie - Python interface for libtiepie-hw library
+
+Copyright (c) 2023 TiePie engineering
+
+Website: http://www.tiepie.com/LibTiePie
+
+"""
+
 from .objectlist import ObjectList
 from .api import api
 from .library import library
@@ -11,7 +19,7 @@ class TriggerOutputs(ObjectList):
         super(TriggerOutputs, self).__init__()
         self._handle = handle
         self._items = [TriggerOutput(handle, i)
-                       for i in range(api.DevTrGetOutputCount(handle))]
+                       for i in range(api.tiepie_hw_device_trigger_get_output_count(handle))]
 
     def get_by_id(self, id):
         index = api.DevTrGetOutputIndexById(self._handle, id)

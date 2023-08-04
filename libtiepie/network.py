@@ -1,3 +1,11 @@
+""" python-libtiepie - Python interface for libtiepie-hw library
+
+Copyright (c) 2023 TiePie engineering
+
+Website: http://www.tiepie.com/LibTiePie
+
+"""
+
 from ctypes import *
 from .api import api
 from .const import *
@@ -16,13 +24,13 @@ class Network(object):
 
     def _get_auto_detect_enabled(self):
         """ Check whether automatically detecting network instruments and instrument servers is enabled. """
-        value = api.NetGetAutoDetectEnabled()
+        value = api.tiepie_hw_network_get_auto_detect_enabled()
         library.check_last_status_raise_on_error()
-        return value != BOOL8_FALSE
+        return value != BOOL_FALSE
 
     def _set_auto_detect_enabled(self, value):
-        value = BOOL8_TRUE if value else BOOL8_FALSE
-        api.NetSetAutoDetectEnabled(value)
+        value = BOOL_TRUE if value else BOOL_FALSE
+        api.tiepie_hw_network_set_auto_detect_enabled(value)
         library.check_last_status_raise_on_error()
 
     auto_detect_enabled = property(_get_auto_detect_enabled, _set_auto_detect_enabled)

@@ -1,3 +1,11 @@
+""" python-libtiepie - Python interface for libtiepie-hw library
+
+Copyright (c) 2023 TiePie engineering
+
+Website: http://www.tiepie.com/LibTiePie
+
+"""
+
 from ctypes import c_uint32
 from .api import api
 from .const import *
@@ -18,43 +26,72 @@ class DeviceList(object):
     def __len__(self):
         return self.count
 
-    def get_item_by_index(self, index):
-        serial_number = api.LstDevGetSerialNumber(IDKIND_INDEX, index)
-        library.check_last_status_raise_on_error()
-        return DeviceListItem(serial_number)
-
     def get_item_by_product_id(self, pid):
-        serial_number = api.LstDevGetSerialNumber(IDKIND_PRODUCTID, pid)
+        handle = api.tiepie_hw_devicelist_get_item_by_product_id(pid)
         library.check_last_status_raise_on_error()
-        return DeviceListItem(serial_number)
+        return DeviceListItem(handle)
+
+    def get_item_by_index(self, index):
+        handle = api.tiepie_hw_devicelist_get_item_by_index(index)
+        library.check_last_status_raise_on_error()
+        return DeviceListItem(handle)
 
     def get_item_by_serial_number(self, serial_number):
-        serial_number = api.LstDevGetSerialNumber(IDKIND_SERIALNUMBER, serial_number)
+        handle = api.tiepie_hw_devicelist_get_item_by_serial_number(serial_number)
         library.check_last_status_raise_on_error()
-        return DeviceListItem(serial_number)
+        return DeviceListItem(handle)
 
     def update(self):
-        api.LstUpdate()
+        api.tiepie_hw_devicelist_update()
+        library.check_last_status_raise_on_error()
+
+    def _get_usb_hotplug_detect_enabled(self):
+        """ Current enabled state of the USB hot plug detection. """
+        value = api.tiepie_hw_devicelist_get_usb_hotplug_detect_enabled()
+        library.check_last_status_raise_on_error()
+        return value != BOOL_FALSE
+
+    def _set_usb_hotplug_detect_enabled(self, value):
+        value = BOOL_TRUE if value else BOOL_FALSE
+        api.tiepie_hw_devicelist_set_usb_hotplug_detect_enabled(value)
         library.check_last_status_raise_on_error()
 
     def _get_count(self):
         """ Number of devices in the device list. """
-        value = api.LstGetCount()
+        value = api.tiepie_hw_devicelist_get_count()
         library.check_last_status_raise_on_error()
         return value
+
+    def _get_demo_device_info(self):
+        """  """
+        value = api.tiepie_hw_devicelist_get_demo_device_info()
+        library.check_last_status_raise_on_error()
+        return value
+
+    def create_demo_device(self, product_id):
+        """ Create a demo instrument.
+
+        :param product_id: The product ID of the demo instrument to create
+        :returns: Serial number of the demo device, or zero on error.
+        .. version added:: 1.0
+        """
+        result = api.tiepie_hw_devicelist_create_demo_device(product_id)
+        library.check_last_status_raise_on_error()
+        return result
 
     def create_combined_device(self, devices):
         """ Create a combined instrument.
 
         :param device: :class:`list` of Device instances.
         :returns: Device list item of combined device.
+        .. version added:: 1.0
         """
         handles = (c_uint32 * len(devices))()
         i = 0
         for device in devices:
             handles[i] = device._handle
             i += 1
-        serial_number = api.LstCreateCombinedDevice(handles, len(handles))
+        serial_number = api.tiepie_hw_devicelist_create_combined_device(handles, len(handles))
         library.check_last_status_raise_on_error()
         return DeviceListItem(serial_number)
 
@@ -63,6 +100,7 @@ class DeviceList(object):
 
         :param device: :class:`list` of Device instances.
         :returns: Instance of combined device.
+        .. version added:: 1.0
         """
         item = self.create_combined_device(devices)
         return item.open_device(item.types)
@@ -71,120 +109,20 @@ class DeviceList(object):
         """ Remove an instrument from the device list so it can be used by other applications.
 
         :param serial_number: Serial number of the device to remove.
-        :param force: Force the removal, even when the device is currenty opened.
+        :param force: Force the removal, even when the device is open.
+        .. version added:: 1.0
         """
-        if force:
-            api.LstRemoveDeviceForce(serial_number)
-        else:
-            api.LstRemoveDevice(serial_number)
+        force = BOOL_TRUE if force else BOOL_FALSE
+        api.tiepie_hw_devicelist_remove_device(serial_number, force)
         library.check_last_status_raise_on_error()
 
-    def set_callback_device_added(self, callback, data):
-        """ Set a callback function which is called when a device is added to the device list.
-
-        :param callback: A pointer to the callback function. Use ``None`` to disable.
-        :param data: Optional user data.
-        """
-        api.LstSetCallbackDeviceAdded(callback, data)
+    def remove_unused_devices(self):
+        api.tiepie_hw_devicelist_remove_unused_devices()
         library.check_last_status_raise_on_error()
 
-    def set_callback_device_removed(self, callback, data):
-        """ Set a callback function which is called when a device is removed from the device list.
-
-        :param callback: A pointer to the callback function. Use ``None`` to disable.
-        :param data: Optional user data.
-        """
-        api.LstSetCallbackDeviceRemoved(callback, data)
-        library.check_last_status_raise_on_error()
-
-    def set_callback_device_can_open_changed(self, callback, data):
-        """ Set a callback function which is called when the device can open property changes.
-
-        :param callback: A pointer to the callback function. Use ``None`` to disable.
-        :param data: Optional user data.
-        .. versionadded:: 0.6
-        """
-        api.LstSetCallbackDeviceCanOpenChanged(callback, data)
-        library.check_last_status_raise_on_error()
-
-    if platform.system() == 'Linux':
-        def set_event_device_added(self, event):
-            """ Set an event file descriptor which is set when a device is added to the device list.
-
-            :param event: An event file descriptor. Use ``<0`` to disable.
-            """
-            api.LstSetEventDeviceAdded(event)
-            library.check_last_status_raise_on_error()
-
-        def set_event_device_removed(self, event):
-            """ Set an event file descriptor which is set when a device is removed from the device list.
-
-            :param event: an event file descriptor. Use ``<0`` to disable.
-            """
-            api.LstSetEventDeviceRemoved(event)
-            library.check_last_status_raise_on_error()
-
-        def set_event_device_can_open_changed(self, event):
-            """ Set an event file descriptor which is set when the device can open property changes.
-
-            :param event: an event file descriptor. Use ``<0`` to disable.
-            .. versionadded:: 0.6
-            """
-            api.LstSetEventDeviceCanOpenChanged(event)
-            library.check_last_status_raise_on_error()
-
-    if platform.system() == 'Windows':
-        def set_event_device_added(self, event):
-            """ Set an event object handle which is set when a device is added to the device list.
-
-            :param event: A handle to the event object. Use ``None`` to disable.
-            """
-            api.LstSetEventDeviceAdded(event)
-            library.check_last_status_raise_on_error()
-
-        def set_event_device_removed(self, event):
-            """ Set an event object handle which is set when a device is removed from the device list.
-
-            :param event: A handle to the event object. Use ``None`` to disable.
-            """
-            api.LstSetEventDeviceRemoved(event)
-            library.check_last_status_raise_on_error()
-
-        def set_event_device_can_open_changed(self, event):
-            """ Set an event object handle which is set when the device can open property changes.
-
-            :param event: A handle to the event object. Use ``None`` to disable.
-            .. versionadded:: 0.6
-            """
-            api.LstSetEventDeviceCanOpenChanged(event)
-            library.check_last_status_raise_on_error()
-
-        def set_message_device_added(self, wnd):
-            """ Set a window handle to which a #WM_LIBTIEPIE_LST_DEVICEADDED message is sent when a device is added to the device list.
-
-            :param wnd: A handle to the window whose window procedure is to receive the message. Use ``None`` to disable.
-            """
-            api.LstSetMessageDeviceAdded(wnd)
-            library.check_last_status_raise_on_error()
-
-        def set_message_device_removed(self, wnd):
-            """ Set a window handle to which a #WM_LIBTIEPIE_LST_DEVICEREMOVED message is sent when a device is removed from the device list.
-
-            :param wnd: A handle to the window whose window procedure is to receive the message. Use ``None`` to disable.
-            """
-            api.LstSetMessageDeviceRemoved(wnd)
-            library.check_last_status_raise_on_error()
-
-        def set_message_device_can_open_changed(self, wnd):
-            """ Set a window handle to which a #WM_LIBTIEPIE_LST_DEVICEREMOVED message is sent when the device can open property changes.
-
-            :param wnd: A handle to the window whose window procedure is to receive the message. Use ``None`` to disable.
-            .. versionadded:: 0.6
-            """
-            api.LstSetMessageDeviceCanOpenChanged(wnd)
-            library.check_last_status_raise_on_error()
-
+    usb_hotplug_detect_enabled = property(_get_usb_hotplug_detect_enabled, _set_usb_hotplug_detect_enabled)
     count = property(_get_count)
+    demo_device_info = property(_get_demo_device_info)
 
 
 device_list = DeviceList()

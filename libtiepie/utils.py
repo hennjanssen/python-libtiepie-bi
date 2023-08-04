@@ -1,3 +1,11 @@
+""" python-libtiepie - Python interface for libtiepie-hw library
+
+Copyright (c) 2023 TiePie engineering
+
+Website: http://www.tiepie.com/LibTiePie
+
+"""
+
 import datetime
 import socket
 import struct
@@ -5,18 +13,11 @@ from .const import *
 from .types import *
 
 
-def convert_version(value):
-    """Convert UInt64/c_uint64 to Version object."""
-    if value == 0:
-        return None
-    return Version(value >> 48, (value >> 32) & 0xffff, (value >> 16) & 0xffff, value & 0xffff)
-
-
 def convert_date(value):
-    """Convert UInt32/c_uint32 to datetime.date object."""
+    """tiepie_hw_date to datetime.date object."""
     if value == 0:
         return None
-    return datetime.date(value >> 16, (value >> 8) & 0xff, value & 0xff)
+    return datetime.date(value.year, value.month, value.day)
 
 
 def convert_tristate(value):
@@ -28,20 +29,9 @@ def convert_tristate(value):
         return Tristate(None)
 
 
-def is_string(obj):
-    try:
-        return isinstance(obj, basestring)
-    except NameError:
-        return isinstance(obj, str)
-
-
-def ipv4_str(value):
-    return socket.inet_ntoa(struct.pack("!I", value))
-
-
 def auto_resolution_mode_str(value):
     result = []
-    for i in range(ARN_COUNT):
+    for i in range(ARMN_COUNT):
         bit = 1 << i
         if (value & bit) != 0:
             result.append(AUTO_RESOLUTION_MODES[bit])

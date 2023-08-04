@@ -1,3 +1,11 @@
+""" python-libtiepie - Python interface for libtiepie-hw library
+
+Copyright (c) 2023 TiePie engineering
+
+Website: http://www.tiepie.com/LibTiePie
+
+"""
+
 from array import array
 from .api import api
 from .utils import *
@@ -9,8 +17,8 @@ class Library(object):
     """"""
 
     def __init__(self):
-        self.__exit = api.LibExit  # Prevent garbage collector from freeing the exit function
-        api.LibInit()
+        self.__exit = api.tiepie_hw_fini  # Prevent garbage collector from freeing the exit function
+        api.tiepie_hw_init()
 
     def __del__(self):
         self.__exit()
@@ -42,7 +50,7 @@ class Library(object):
         elif status == STATUS_INVALID_DEVICE_INDEX:
             raise InvalidDeviceIndexError()
         elif status == STATUS_INVALID_PRODUCT_ID:
-            raise InvalidProductIdError()
+            raise InvalidProductIDError()
         elif status == STATUS_INVALID_DEVICE_SERIALNUMBER:
             raise InvalidDeviceSerialNumberError()
         elif status == STATUS_OBJECT_GONE:
@@ -61,8 +69,6 @@ class Library(object):
             raise InvalidInputError()
         elif status == STATUS_INVALID_OUTPUT:
             raise InvalidOutputError()
-        elif status == STATUS_INVALID_DRIVER:
-            raise InvalidDriverError()
         elif status == STATUS_NOT_AVAILABLE:
             raise NotAvailableError()
         elif status == STATUS_INVALID_FIRMWARE:
@@ -83,18 +89,22 @@ class Library(object):
             raise InvalidHS56CombinedDeviceError()
         elif status == STATUS_MEASUREMENT_RUNNING:
             raise MeasurementRunningError()
+        elif status == STATUS_WIRELESSTRIGGERMODULENOTCONNECTED:
+            raise WirelesstriggermodulenotconnectedError()
         elif status == STATUS_INITIALIZATION_ERROR_10001:
-            raise InitializationError10001()
+            raise InitializationError10001Error()
         elif status == STATUS_INITIALIZATION_ERROR_10002:
-            raise InitializationError10002()
+            raise InitializationError10002Error()
         elif status == STATUS_INITIALIZATION_ERROR_10003:
-            raise InitializationError10003()
+            raise InitializationError10003Error()
         elif status == STATUS_INITIALIZATION_ERROR_10004:
-            raise InitializationError10004()
+            raise InitializationError10004Error()
         elif status == STATUS_INITIALIZATION_ERROR_10005:
-            raise InitializationError10005()
+            raise InitializationError10005Error()
         elif status == STATUS_INITIALIZATION_ERROR_10006:
-            raise InitializationError10006()
+            raise InitializationError10006Error()
+        elif status == STATUS_INITIALIZATION_ERROR_10007:
+            raise InitializationError10007Error()
         else:
             raise LibTiePieException(status, self.last_status_str)
 
@@ -108,9 +118,6 @@ class Library(object):
         elif interfaces == (INTERFACE_DEVICE | INTERFACE_GENERATOR):
             from .generator import Generator
             return Generator(handle)
-        elif interfaces == (INTERFACE_DEVICE | INTERFACE_I2CHOST):
-            from .i2chost import I2CHost
-            return I2CHost(handle)
         elif interfaces == INTERFACE_DEVICE:
             from .device import Device
             return Device(handle)
@@ -122,38 +129,34 @@ class Library(object):
 
     def _get_is_initialized(self):
         """ Check whether the library's internal resources are initialized. """
-        value = api.LibIsInitialized()
-        return value != BOOL8_FALSE
+        value = api.tiepie_hw_is_initialized()
+        return value != BOOL_FALSE
+
+    def fini(self):
+        api.tiepie_hw_fini()
 
     def _get_version(self):
-        """ Library version number. """
-        value = api.LibGetVersion()
-        return convert_version(value)
-
-    def _get_version_extra(self):
-        """ Library version postfix. """
-        value = api.LibGetVersionExtra()
-        return value.decode('utf-8')
+        """ Get library version info. """
+        return api.tiepie_hw_get_version().contents
 
     def _get_config(self):
         """ Library configuration number. """
-        count = api.LibGetConfig(None, 0)
+        count = api.tiepie_hw_get_config(None, 0)
         values = (c_uint8 * count)()
-        api.LibGetConfig(values, count)
+        api.tiepie_hw_get_config(values, count)
         return array('B', values)
 
     def _get_last_status(self):
         """ Last status value. """
-        return api.LibGetLastStatus()
+        return api.tiepie_hw_get_last_status()
 
     def _get_last_status_str(self):
         """ Last status value as text. """
-        value = api.LibGetLastStatusStr()
+        value = api.tiepie_hw_get_last_status_str()
         return value.decode('utf-8')
 
     is_initialized = property(_get_is_initialized)
     version = property(_get_version)
-    version_extra = property(_get_version_extra)
     config = property(_get_config)
     last_status = property(_get_last_status)
     last_status_str = property(_get_last_status_str)
