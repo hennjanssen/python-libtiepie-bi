@@ -109,7 +109,7 @@ class Library(object):
             raise LibTiePieException(status, self.last_status_str)
 
     def create_object(self, handle):
-        interfaces = api.ObjGetInterfaces(handle)
+        interfaces = api.tiepie_hw_object_get_interfaces(handle)
         self.check_last_status_raise_on_error()
 
         if interfaces == (INTERFACE_DEVICE | INTERFACE_OSCILLOSCOPE):
