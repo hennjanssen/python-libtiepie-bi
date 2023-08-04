@@ -25,7 +25,18 @@ def load_libtiepie():
         except AttributeError:  # <3.8, use PATH
             os.environ['PATH'] = os.path.dirname(DLL_PATH) + os.pathsep + os.environ['PATH']
 
-    api = CDLL(DLL_PATH)
+    try:
+        api = CDLL(DLL_PATH.split("/")[-1])
+    except OSError:
+        from ctypes import _dlopen
+        DLL_DIR = os.path.dirname(DLL_PATH)
+        _dlopen(DLL_DIR + "/libtiepie-core.so.0")
+        _dlopen(DLL_DIR + "/libtiepie-tp.so.0")
+        _dlopen(DLL_DIR + "/libtiepie-m.so.0")
+        _dlopen(DLL_DIR + "/libtiepie-nw.so.0")
+        _dlopen(DLL_DIR + "/libtiepie-usb.so.0")
+
+        api = CDLL(DLL_PATH)
 
     api.tiepie_hw_init.restype = None
     api.tiepie_hw_init.argtypes = []
