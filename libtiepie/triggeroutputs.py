@@ -22,7 +22,7 @@ class TriggerOutputs(ObjectList):
                        for i in range(api.tiepie_hw_device_trigger_get_output_count(handle))]
 
     def get_by_id(self, id):
-        index = api.DevTrGetOutputIndexById(self._handle, id)
+        index = api.tiepie_hw_device_trigger_get_output_index_by_id(self._handle, id)
         library.check_last_status_raise_on_error()
         if index < len(self._items):
             return self._items[index]

@@ -899,19 +899,4 @@ def load_libtiepie():
     return api
 
 
-if 'sphinx' in sys.modules:
-    try:
-        api = load_libtiepie()
-    except OSError as e:
-        print(f"Warning: {e}", file=sys.stderr)
-
-        class API:
-            def LibInit(self):
-                pass
-
-            def LibExit(self):
-                pass
-
-    api = API()
-else:
-    api = load_libtiepie()
+api = load_libtiepie()

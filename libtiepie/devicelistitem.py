@@ -6,6 +6,7 @@ Website: http://www.tiepie.com/LibTiePie
 
 """
 
+from array import array
 from ctypes import create_string_buffer
 from .api import api
 from .const import *
