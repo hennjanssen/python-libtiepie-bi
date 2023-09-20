@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
-from setuptools import setup, find_packages
+from setuptools import find_packages, setup
 
 setup(name='python-libtiepie',
-      version='1.1.8',
+      version='1.1.10',
       description='Python bindings for LibTiePie',
       license='MIT',
       author='TiePie engineering',
