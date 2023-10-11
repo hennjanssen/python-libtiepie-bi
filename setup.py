@@ -2,7 +2,7 @@
 
 from setuptools import find_packages, setup
 
-setup(name='python-libtiepie',
+setup(name='python-libtiepie-bi',
       version='1.1.11',
       description='Python bindings for LibTiePie',
       license='MIT',
