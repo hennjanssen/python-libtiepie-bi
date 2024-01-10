@@ -1,6 +1,6 @@
 """ python-libtiepie - Python interface for libtiepie-hw library
 
-Copyright (c) 2023 TiePie engineering
+Copyright (c) 2024 TiePie engineering
 
 Website: http://www.tiepie.com/LibTiePie
 
@@ -76,7 +76,7 @@ class DeviceListItem(Object):
         length = api.tiepie_hw_devicelistitem_opened_by(self._handle, device_type, 'None', '0')
         library.check_last_status_raise_on_error()
         buf = create_string_buffer(length + 1)
-        api.tiepie_hw_devicelistitem_opened_by(self._handle, device_type, buf, length)
+        api.tiepie_hw_devicelistitem_opened_by(self._handle, device_type, buf, length + 1)
         library.check_last_status_raise_on_error()
         return buf.value.decode('utf-8')
 
@@ -91,7 +91,7 @@ class DeviceListItem(Object):
         length = api.tiepie_hw_devicelistitem_get_name(self._handle, None, 0)
         library.check_last_status_raise_on_error()
         buf = create_string_buffer(length + 1)
-        api.tiepie_hw_devicelistitem_get_name(self._handle, buf, length)
+        api.tiepie_hw_devicelistitem_get_name(self._handle, buf, length + 1)
         library.check_last_status_raise_on_error()
         return buf.value.decode('utf-8')
 
@@ -100,7 +100,7 @@ class DeviceListItem(Object):
         length = api.tiepie_hw_devicelistitem_get_name_short(self._handle, None, 0)
         library.check_last_status_raise_on_error()
         buf = create_string_buffer(length + 1)
-        api.tiepie_hw_devicelistitem_get_name_short(self._handle, buf, length)
+        api.tiepie_hw_devicelistitem_get_name_short(self._handle, buf, length + 1)
         library.check_last_status_raise_on_error()
         return buf.value.decode('utf-8')
 
@@ -109,7 +109,7 @@ class DeviceListItem(Object):
         length = api.tiepie_hw_devicelistitem_get_name_shortest(self._handle, None, 0)
         library.check_last_status_raise_on_error()
         buf = create_string_buffer(length + 1)
-        api.tiepie_hw_devicelistitem_get_name_shortest(self._handle, buf, length)
+        api.tiepie_hw_devicelistitem_get_name_shortest(self._handle, buf, length + 1)
         library.check_last_status_raise_on_error()
         return buf.value.decode('utf-8')
 
@@ -130,7 +130,7 @@ class DeviceListItem(Object):
         length = api.tiepie_hw_devicelistitem_get_ip_address(self._handle, None, 0)
         library.check_last_status_raise_on_error()
         buf = create_string_buffer(length + 1)
-        api.tiepie_hw_devicelistitem_get_ip_address(self._handle, buf, length)
+        api.tiepie_hw_devicelistitem_get_ip_address(self._handle, buf, length + 1)
         library.check_last_status_raise_on_error()
         return buf.value.decode('utf-8')
 

@@ -1,6 +1,6 @@
 """ python-libtiepie - Python interface for libtiepie-hw library
 
-Copyright (c) 2023 TiePie engineering
+Copyright (c) 2024 TiePie engineering
 
 Website: http://www.tiepie.com/LibTiePie
 
@@ -77,7 +77,7 @@ class Server(Object):
         length = api.tiepie_hw_server_get_url(self._handle, None, 0)
         library.check_last_status_raise_on_error()
         buf = create_string_buffer(length + 1)
-        api.tiepie_hw_server_get_url(self._handle, buf, length)
+        api.tiepie_hw_server_get_url(self._handle, buf, length + 1)
         library.check_last_status_raise_on_error()
         return buf.value.decode('utf-8')
 
@@ -86,7 +86,7 @@ class Server(Object):
         length = api.tiepie_hw_server_get_id(self._handle, None, 0)
         library.check_last_status_raise_on_error()
         buf = create_string_buffer(length + 1)
-        api.tiepie_hw_server_get_id(self._handle, buf, length)
+        api.tiepie_hw_server_get_id(self._handle, buf, length + 1)
         library.check_last_status_raise_on_error()
         return buf.value.decode('utf-8')
 
@@ -95,7 +95,7 @@ class Server(Object):
         length = api.tiepie_hw_server_get_ip_address(self._handle, None, 0)
         library.check_last_status_raise_on_error()
         buf = create_string_buffer(length + 1)
-        api.tiepie_hw_server_get_ip_address(self._handle, buf, length)
+        api.tiepie_hw_server_get_ip_address(self._handle, buf, length + 1)
         library.check_last_status_raise_on_error()
         return buf.value.decode('utf-8')
 
@@ -110,7 +110,7 @@ class Server(Object):
         length = api.tiepie_hw_server_get_name(self._handle, None, 0)
         library.check_last_status_raise_on_error()
         buf = create_string_buffer(length + 1)
-        api.tiepie_hw_server_get_name(self._handle, buf, length)
+        api.tiepie_hw_server_get_name(self._handle, buf, length + 1)
         library.check_last_status_raise_on_error()
         return buf.value.decode('utf-8')
 
@@ -119,7 +119,7 @@ class Server(Object):
         length = api.tiepie_hw_server_get_description(self._handle, None, 0)
         library.check_last_status_raise_on_error()
         buf = create_string_buffer(length + 1)
-        api.tiepie_hw_server_get_description(self._handle, buf, length)
+        api.tiepie_hw_server_get_description(self._handle, buf, length + 1)
         library.check_last_status_raise_on_error()
         return buf.value.decode('utf-8')
 
@@ -128,7 +128,7 @@ class Server(Object):
         length = api.tiepie_hw_server_get_version(self._handle, None, 0)
         library.check_last_status_raise_on_error()
         buf = create_string_buffer(length + 1)
-        api.tiepie_hw_server_get_version(self._handle, buf, length)
+        api.tiepie_hw_server_get_version(self._handle, buf, length + 1)
         library.check_last_status_raise_on_error()
         return buf.value.decode('utf-8')
 

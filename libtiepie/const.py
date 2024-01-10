@@ -1,6 +1,6 @@
 """ python-libtiepie - Python interface for libtiepie-hw library
 
-Copyright (c) 2023 TiePie engineering
+Copyright (c) 2024 TiePie engineering
 
 Website: http://www.tiepie.com/LibTiePie
 
@@ -10,10 +10,10 @@ import platform
 
 
 VERSION_MAJOR = 1
-VERSION_MINOR = 1
-VERSION_PATCH = 11
-VERSION_NUMBER = "1.1.11"
-VERSION = "1.1.11"
+VERSION_MINOR = 2
+VERSION_PATCH = 1
+VERSION_NUMBER = "1.2.1"
+VERSION = "1.2.1"
 
 HANDLE_INVALID = 0
 

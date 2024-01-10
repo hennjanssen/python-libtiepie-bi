@@ -1,6 +1,6 @@
 """ python-libtiepie - Python interface for libtiepie-hw library
 
-Copyright (c) 2023 TiePie engineering
+Copyright (c) 2024 TiePie engineering
 
 Website: http://www.tiepie.com/LibTiePie
 
@@ -146,7 +146,7 @@ class OscilloscopeChannelTrigger(object):
     def verify_time_ex(self, index, value, measure_mode, sample_rate, trigger_kind, trigger_condition):
         """ Verify if the required trigger time value, measure mode, sample rate, trigger type and trigger condition can be set.
 
-        :param index: The trigger time index, ``0`` to <tt>Scp_chTr_get_time_count() - 1</tt>.
+        :param index: The trigger time index, ``0`` to <tt>tiepie_hw_oscilloscope_channel_trigger_get_time_count() - 1</tt>.
         :param value: The required trigger time value, in seconds.
         :param measure_mode: The required measure mode.
         :param sample_rate: Sample rate in Hz.

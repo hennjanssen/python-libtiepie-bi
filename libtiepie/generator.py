@@ -1,6 +1,6 @@
 """ python-libtiepie - Python interface for libtiepie-hw library
 
-Copyright (c) 2023 TiePie engineering
+Copyright (c) 2024 TiePie engineering
 
 Website: http://www.tiepie.com/LibTiePie
 
