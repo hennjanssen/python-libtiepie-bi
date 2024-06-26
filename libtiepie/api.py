@@ -6,12 +6,13 @@ Website: http://www.tiepie.com/LibTiePie
 
 """
 
+import os
+import platform
 import sys
 from ctypes import *
-import platform
-from .types import *
+
 from ._platform import DLL_PATH, is_windows
-import os
+from .types import *
 
 
 def load_libtiepie():
@@ -26,7 +27,7 @@ def load_libtiepie():
             os.environ['PATH'] = os.path.dirname(DLL_PATH) + os.pathsep + os.environ['PATH']
 
     try:
-        api = CDLL(DLL_PATH.split("/")[-1])
+        api = CDLL(DLL_PATH)
     except OSError:
         from ctypes import _dlopen
         DLL_DIR = os.path.dirname(DLL_PATH)
