@@ -29,4 +29,5 @@ setup(
         "Topic :: Scientific/Engineering",
         "Topic :: Software Development",
     ],
+    scripts=["install-tiepie-udev.sh"],
 )

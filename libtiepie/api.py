@@ -25,6 +25,16 @@ def load_libtiepie():
             os.add_dll_directory(os.path.dirname(DLL_PATH))
         except AttributeError:  # <3.8, use PATH
             os.environ['PATH'] = os.path.dirname(DLL_PATH) + os.pathsep + os.environ['PATH']
+    elif not os.path.exists("/etc/udev/rules.d/45-tiepie-usb.rules"):  # Linux without udev-rule
+        import warnings
+        msg = (
+            "\n\n"
+            "The udev-rule is not set. You will not see attached TiePie devices.\n"
+            "\n"
+            "Run in terminal (assuming '.venv' is your virtual environment):\n\n"
+            "   $ sudo sh .venv/bin/install-tiepie-udev.sh\n"
+            )
+        warnings.warn(msg, stacklevel=2)
 
     try:
         api = CDLL(DLL_PATH)
